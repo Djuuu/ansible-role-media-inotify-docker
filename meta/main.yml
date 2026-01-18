@@ -1,0 +1,29 @@
+---
+dependencies:
+
+galaxy_info:
+  namespace: djuuu
+  role_name: media_inotify_docker
+  author: Julien Tardot
+  description: Install docker-inotify project to notify media servers on file changes.
+
+  issue_tracker_url: https://github.com/Djuuu/ansible-role-media-inotify-docker
+
+  license: Beerware
+
+  min_ansible_version: '2.11'
+
+  platforms:
+    - name: Debian
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - all
+
+  galaxy_tags:
+    - docker
+    - inotify
+    - media
+    - jellyfin
+    - navidrome
