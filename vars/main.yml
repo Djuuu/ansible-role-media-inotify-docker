@@ -1,4 +1,3 @@
 ---
 
-
 docker_project_name: "{{ media_inotify_project_name }}"

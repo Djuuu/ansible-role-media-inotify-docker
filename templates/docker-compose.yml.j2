@@ -1,0 +1,36 @@
+# {{ ansible_managed }}
+# {{ template_fullpath | regex_replace('^' ~ role_path, role_path | basename) }}
+# https://github.com/devodev/docker-inotify
+
+name: {{ docker_project_slug }}
+
+x-inotify-common: &inotify-common
+  image: devodev/inotify:{{ media_inotify_image_version }}
+  restart: {{ docker_project_restart }}
+  network_mode: host
+  env_file: .env
+  environment: &inotify-env
+    INOTIFY_CFG_EVENTS: {{ media_inotify_events | default([]) | join(' ') }}
+    INOTIFY_CFG_RECURSIVE: {{ media_inotify_recursive }}
+    INOTIFY_SCRIPT: /scripts/media-server-update.sh
+
+services:
+  {% for watch in media_inotify_watches %}
+
+  inotify-{{ watch.name }}:
+    <<: *inotify-common
+    container_name: inotify-{{ watch.name }}
+    environment:
+      # INOTIFY vars
+      <<: *inotify-env
+      INOTIFY_TARGET: {{ watch.watch_from }}
+      # Update script vars
+      WATCH_FROM: {{ watch.watch_from }}
+      NOTIFY_TO: {{ watch.notify_to }}
+      WATCH_DIRS: {{ watch.dirs | default([], true) | join('|') }}
+      WATCH_EXT: {{ watch.ext | default([], true) | join('|') }}
+      WATCH_UPDATE: {{ watch.update_services | default([]) | join(',') }}
+    volumes:
+      - ./scripts:/scripts
+      - {{ watch.watch_from }}:{{ watch.watch_from }}
+  {% endfor %}
