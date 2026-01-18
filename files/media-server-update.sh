@@ -6,6 +6,12 @@
 WATCH_FROM="${WATCH_FROM%/}/" # ensure trailing slash
 NOTIFY_TO="${NOTIFY_TO%/}/" # ensure trailing slash
 
+# source handlers
+SCRIPT_DIR=$(dirname "$0")
+for handler in "${SCRIPT_DIR}/handlers/"*.sh; do
+  [[ -f "$handler" ]] && source "$handler"
+done
+
 
 check_event_handled() {
   local event=$1
@@ -83,69 +89,6 @@ json_escape() {
   echo "$s"
 }
 
-update_jellyfin() {
-  local path="$1"
-  local event="$2"
-
-  local updateType
-
-  [[ -z $JELLYFIN_BASE_URL ]] && echo "JELLYFIN_BASE_URL not set" && return 1
-  [[ -z $JELLYFIN_TOKEN    ]] && echo "JELLYFIN_TOKEN not set"    && return 1
-
-  case $event in
-    CREATE)       updateType="Created"  ;;
-    MODIFY)       updateType="Modified" ;;
-    MOVED_FROM)   updateType="Modified" ;;
-    MOVED_TO)     updateType="Modified" ;;
-    DELETE)       updateType="Deleted"  ;;
-
-    # CREATE,ISDIR)   ;; # unhandled
-    MODIFY,ISDIR)     updateType="Modified" ;;
-    MOVED_FROM,ISDIR) updateType="Modified" ;;
-    MOVED_TO,ISDIR)   updateType="Modified" ;;
-    # DELETE,ISDIR)   ;; # unhandled
-
-    *)
-      updateType="Modified"
-      echo "event is $event ???"
-      ;;
-  esac
-
-  echo "Updating Jellyfin: ${updateType} ${path}"
-
-  path=$(json_escape "$path")
-
-  local data="{\"Updates\": [{\"Path\": \"${path}\",\"UpdateType\": \"${updateType}\"}]}"
-  #echo "${data}"
-
-  curl -X 'POST' \
-    -H "Authorization: MediaBrowser Token=${JELLYFIN_TOKEN}, Client=custom-watcher" \
-    -H 'Content-Type: application/json' \
-    "${JELLYFIN_BASE_URL}/Library/Media/Updated" \
-    -d "${data}" \
-    -s -w "%{http_code}\n"
-}
-
-update_navidrome() {
-  local path="$1"
-  local event="$2"
-
-  [[ -z $NAVIDROME_BASE_URL ]] && echo "NAVIDROME_BASE_URL not set" && return 1
-  [[ -z $NAVIDROME_VERSION  ]] && echo "NAVIDROME_VERSION not set"  && return 1
-  [[ -z $NAVIDROME_CLIENT   ]] && echo "NAVIDROME_CLIENT not set"   && return 1
-  [[ -z $NAVIDROME_USER     ]] && echo "NAVIDROME_USER not set"     && return 1
-  [[ -z $NAVIDROME_TOKEN    ]] && echo "NAVIDROME_TOKEN not set"    && return 1
-  [[ -z $NAVIDROME_SALT     ]] && echo "NAVIDROME_SALT not set"     && return 1
-
-  local query="u=${NAVIDROME_USER}&v=${NAVIDROME_VERSION}&c=${NAVIDROME_CLIENT}&t=${NAVIDROME_TOKEN}&s=${NAVIDROME_SALT}"
-
-  echo "Updating Navidrome: ${path}"
-
-  curl "${NAVIDROME_BASE_URL}/startScan?${query}" \
-    -s -o /dev/null -w "%{http_code}\n"
-}
-
-
 main() {
   # shellcheck disable=SC2034
   local timestamp=$1
@@ -170,11 +113,12 @@ main() {
   while IFS=',' read -d ',' -r action || [[ -n "$action" ]]; do
     [[ -z ${action//$'\n'/} ]] && continue
 
-    case $action in
-      jellyfin)  update_jellyfin "${file_target}" "${event}" ;;
-      navidrome) update_navidrome "${file_target}" "${event}" ;;
-      *) echo "Unhandled update action: $action" ;;
-    esac
+    local update_func="update_${action}"
+    if declare -f "$update_func" > /dev/null; then
+      "$update_func" "${file_target}" "${event}"
+    else
+      echo "Unhandled media server: $action"
+    fi
   done <<< "${WATCH_UPDATE},"
 }
 

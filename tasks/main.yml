@@ -14,10 +14,10 @@
 
 ## Configure
 
-- name: Deploy media-server-update.sh
+- name: Copy scripts
   ansible.builtin.copy:
-    src: media-server-update.sh
-    dest: "{{ docker_project_path }}/scripts/media-server-update.sh"
+    src: "./"
+    dest: "{{ docker_project_path }}/scripts"
     mode: '0755'
 
 - name: Template .env

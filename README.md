@@ -101,6 +101,19 @@ Example Playbook
     - djuuu.media_inotify_docker
 ```
 
+Adding other media servers
+--------------------------
+
+1. Create a new bash script in `files/handlers/` named after your service (e.g., `myserver.sh`).
+2. Define a function named `update_<service_name>` (e.g., `update_myserver`).
+   The function receives two arguments:
+   - `$1`: The mapped path of the file to update on the target media server
+   - `$2`: The inotify event type ('CREATE', 'MODIFY', 'MOVED_FROM', 'MOVED_TO', 'DELETE', 'CREATE,ISDIR', ...)
+3. Use the service name in the `update_services` list in your configuration.
+
+The main script automatically sources all files in the `handlers/` directory and calls the appropriate update function
+based on the service name.
+
 License
 -------
 
